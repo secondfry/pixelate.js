@@ -43,4 +43,4 @@ License
 ===
 https://raw.githubusercontent.com/secondfry/license/master/LICENSE
 
-[pixelate_demo]: http://secondfry.github.io/pixelate/
+[pixelate_demo]: http://secondfry.github.io/pixelate.js/
