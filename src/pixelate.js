@@ -6,30 +6,31 @@
  * @copyright Copyright (c) 2016 Rustam Second_Fry Gubaydullin (@Second_Fry), 2013 43081j (@43081j)
  * @license   https://github.com/secondfry/license/blob/master/LICENSE (MIT License)
  */
+'use strict';
+
 (function(window, $) {
-	var pixelate = function() {
+	window.HTMLImageElement.prototype.pixelate = function() {
 		this._settings = {
-			value: 0.1,
+			value: 0.25,
 			reveal_on_hover: false,
 			reveal_on_click: false
 		};
 		this._arguments = [].slice.call(arguments, 0);
-		this.element = this;
-		this.parent = this.parentNode;
-
-		var _core = this;
+		if(typeof this._done == 'undefined') {
+			this._done = false;
+		}
 
 		this.parseArguments = function() {
 			for(var option in this._settings) {
 				if(this._settings.hasOwnProperty(option)) {
-					if(this.element.dataset.hasOwnProperty(option)) {
-						switch(this.element.dataset[option]) {
+					if(this.dataset.hasOwnProperty(option)) {
+						switch(this.dataset[option]) {
 							case 'true':
 							case 'false':
-								this._settings[option] = (this.element.dataset[option] === 'true');
+								this._settings[option] = (this.dataset[option] === 'true');
 								break;
 							default:
-								this._settings[option] = this.element.dataset[option];
+								this._settings[option] = this.dataset[option];
 						}
 					}
 					if(typeof this._arguments !== 'undefined' && this._arguments.length === 1 && this._arguments[0].hasOwnProperty(option)) {
@@ -43,62 +44,74 @@
 						}
 					}
 				}
-
 			}
 		};
 		this.perform = function() {
-			this.width = this.element.width;
-			this.height = this.element.height;
+			this.displayWidth = this.width;
+			this.displayHeight = this.height;
+
 			this.canvas = document.createElement('canvas');
 			this.canvas.width = this.width;
 			this.canvas.height = this.height;
+			this.canvas.style = this.style;
+			this.canvas.classList = this.classList;
+			for(var option in this.dataset) {
+				if(this.dataset.hasOwnProperty(option)) {
+					this.canvas.dataset[option] = this.dataset[option];
+				}
+			}
+
 			this.context = this.canvas.getContext('2d');
 			this.context.mozImageSmoothingEnabled = false;
 			this.context.webkitImageSmoothingEnabled = false;
 			this.context.imageSmoothingEnabled = false;
-			this.crop_width = this.width * this._settings.value;
-			this.crop_height = this.height * this._settings.value;
-			this.context.drawImage(this.element, 0, 0, this.crop_width, this.crop_height);
-			this.context.drawImage(this.canvas, 0, 0, this.crop_width, this.crop_height, 0, 0, this.canvas.width, this.canvas.height);
-			this.element.style.display = 'none';
-			this.parent.insertBefore(this.canvas, this.element);
+
+			this.cropWidth = this.displayWidth * this._settings.value;
+			this.cropHeight = this.displayHeight * this._settings.value;
+			this.context.drawImage(this, 0, 0, this.cropWidth, this.cropHeight);
+			this.context.drawImage(this.canvas, 0, 0, this.cropWidth, this.cropHeight, 0, 0, this.displayWidth, this.displayHeight);
+
+			this.style.display = 'none';
+			this.parentNode.insertBefore(this.canvas, this);
 		};
 		this.listen = function() {
-			_core.releaved = false;
+			this.releaved = false;
 			if(this._settings.reveal_on_hover === true) {
-				this.canvas.addEventListener('mouseenter', function() {
-					if(_core.revealed) return;
-					_core.context.drawImage(_core.element, 0, 0, _core.width, _core.height);
-				});
-				this.canvas.addEventListener('mouseleave', function() {
-					if(_core.revealed) return;
-					_core.context.drawImage(_core.element, 0, 0, _core.crop_width, _core.crop_height);
-					_core.context.drawImage(_core.canvas, 0, 0, _core.crop_width, _core.crop_height, 0, 0, _core.canvas.width, _core.canvas.height);
-				});
+				this.canvas.addEventListener('mouseenter', (function() {
+					if(this.revealed) return;
+					this.context.drawImage(this, 0, 0, this.displayWidth, this.displayHeight);
+				}).bind(this));
+				this.canvas.addEventListener('mouseleave', (function() {
+					if(this.revealed) return;
+					this.context.drawImage(this, 0, 0, this.cropWidth, this.cropHeight);
+					this.context.drawImage(this.canvas, 0, 0, this.cropWidth, this.cropHeight, 0, 0, this.displayWidth, this.displayHeight);
+				}).bind(this));
 			}
 			if(this._settings.reveal_on_click === true) {
-				this.canvas.addEventListener('click', function() {
-					_core.revealed = !_core.revealed;
-					if(_core.revealed) {
-						_core.context.drawImage(_core.element, 0, 0, _core.width, _core.height);
+				this.canvas.addEventListener('click', (function() {
+					this.revealed = !this.revealed;
+					if(this.revealed) {
+						this.context.drawImage(this, 0, 0, this.displayWidth, this.displayHeight);
 					} else {
-						_core.context.drawImage(_core.element, 0, 0, _core.crop_width, _core.crop_height);
-						_core.context.drawImage(_core.canvas, 0, 0, _core.crop_width, _core.crop_height, 0, 0, _core.canvas.width, _core.canvas.height);
+						this.context.drawImage(this, 0, 0, this.cropWidth, this.cropHeight);
+						this.context.drawImage(this.canvas, 0, 0, this.cropWidth, this.cropHeight, 0, 0, this.displayWidth, this.displayHeight);
 					}
-				});
+				}).bind(this));
 			}
 		};
 
-		this.parseArguments();
-		this.perform();
-		this.listen();
+		if(!this._done) {
+			this._done = true;
+			this.parseArguments();
+			this.perform();
+			this.listen();
+		}
 	};
-	window.HTMLImageElement.prototype.pixelate = pixelate;
 	if(typeof $ === 'function') {
 		$.fn.extend({
 			pixelate: function() {
 				return this.each(function() {
-					pixelate.apply(this, arguments);
+					window.HTMLImageElement.prototype.pixelate.apply(this, arguments);
 				});
 			}
 		});
