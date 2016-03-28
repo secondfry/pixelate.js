@@ -7,33 +7,14 @@
 'use strict';
 
 var PixelateAuto = function(autoOptions){
-	function ready(fn) {
-		if (document.readyState != 'loading') {
-			fn();
-		} else {
-			document.addEventListener('DOMContentLoaded', fn);
-		}
-	}
-
-	function pixelateImages(images) {
-		if (images) {
-			images.forEach(function (image) {
-				if (image.complete) {
-					image.src = image.src + '?' + new Date().getTime();
-				}
-				image.addEventListener('load', function (e) {
-					this.pixelate(autoOptions);
-				})
-			})
-		}
-	}
-
-	ready(function () {
-		pixelateImages(document.querySelectorAll('img'));
+	return PixelateHelper.ready(function(){
+		PixelateHelper.pixelateImages(document.querySelectorAll('img'), autoOptions);
+		PixelateHelper.pixelateVideos(document.querySelectorAll('video'), autoOptions);
 		document.addEventListener('DOMNodeInserted', function (e) {
 			if (e.target && e.target.querySelectorAll) {
-				pixelateImages(e.target.querySelectorAll('img'));
+				PixelateHelper.pixelateImages(e.target.querySelectorAll('img'), autoOptions);
 			}
-		})
+		});
+		return this;
 	});
 };

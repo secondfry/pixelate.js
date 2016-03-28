@@ -8,6 +8,37 @@
  */
 'use strict';
 
+var PixelateHelper = {
+	ready: function(fn) {
+		if (document.readyState != 'loading') {
+			fn();
+		} else {
+			document.addEventListener('DOMContentLoaded', fn);
+		}
+	},
+	pixelateImages: function (images, options) {
+		if (images) {
+			images.forEach(function (image) {
+				if (image.complete) {
+					image.src = image.src + '?' + new Date().getTime();
+				}
+				image.addEventListener('load', function (e) {
+					this.pixelate(options);
+				})
+			})
+		}
+	},
+	pixelateVideos: function (videos, options) {
+		if (videos) {
+			videos.forEach(function (video) {
+				video.addEventListener('play', function (e) {
+					this.pixelate(options);
+				})
+			})
+		}
+	}
+};
+
 (function(window, $) {
 	window.HTMLImageElement.prototype.pixelate = function() {
 		this._settings = {
@@ -15,7 +46,19 @@
 			reveal_on_hover: false,
 			reveal_on_click: false
 		};
-		this._arguments = [].slice.call(arguments, 0);
+		/*
+		 * As of https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/arguments
+		 * > Using slice on arguments prevents optimizations in some JavaScript engines (V8 for example).
+		 * > If you care for them, try constructing a new array by iterating through the arguments object instead.
+		 */
+		this._arguments = [];
+		for(var argument in arguments) {
+			if(arguments.hasOwnProperty(argument)) {
+				if(typeof arguments[argument] !== 'undefined') {
+					this._arguments.push(arguments[argument]);
+				}
+			}
+		}
 		if(typeof this._done == 'undefined') {
 			this._done = false;
 		}
@@ -46,13 +89,17 @@
 				}
 			}
 		};
-		this.perform = function() {
+		this.prepare = function() {
 			this.displayWidth = this.width;
 			this.displayHeight = this.height;
+			if(!this.displayWidth) {
+				this.displayWidth = this.videoWidth;
+				this.displayHeight = this.videoHeight;
+			}
 
 			this.canvas = document.createElement('canvas');
-			this.canvas.width = this.width;
-			this.canvas.height = this.height;
+			this.canvas.width = this.displayWidth;
+			this.canvas.height = this.displayHeight;
 			this.canvas.style = this.style;
 			this.canvas.classList = this.classList;
 			for(var option in this.dataset) {
@@ -68,33 +115,46 @@
 
 			this.cropWidth = this.displayWidth * this._settings.value;
 			this.cropHeight = this.displayHeight * this._settings.value;
-			this.context.drawImage(this, 0, 0, this.cropWidth, this.cropHeight);
-			this.context.drawImage(this.canvas, 0, 0, this.cropWidth, this.cropHeight, 0, 0, this.displayWidth, this.displayHeight);
 
 			this.style.display = 'none';
 			this.parentNode.insertBefore(this.canvas, this);
 		};
+		this.showCroppedImage = function() {
+			this.context.drawImage(this, 0, 0, this.cropWidth, this.cropHeight);
+			this.context.drawImage(this.canvas, 0, 0, this.cropWidth, this.cropHeight, 0, 0, this.displayWidth, this.displayHeight);
+		};
+		this.showFullImage = function() {
+			this.context.drawImage(this, 0, 0, this.displayWidth, this.displayHeight);
+		};
+		this.showCroppedVideo = (function() {
+			if(this.fullRequestID) cancelAnimationFrame(this.fullRequestID);
+			this.cropRequestID = requestAnimationFrame(this.showCroppedVideo);
+			this.showCroppedImage();
+		}).bind(this);
+		this.showFullVideo = (function() {
+			if(this.cropRequestID) cancelAnimationFrame(this.cropRequestID);
+			this.fullRequestID = requestAnimationFrame(this.showFullVideo);
+			this.showFullImage();
+		}).bind(this);
 		this.listen = function() {
 			this.releaved = false;
 			if(this._settings.reveal_on_hover === true) {
 				this.canvas.addEventListener('mouseenter', (function() {
 					if(this.revealed) return;
-					this.context.drawImage(this, 0, 0, this.displayWidth, this.displayHeight);
+					this.showFull();
 				}).bind(this));
 				this.canvas.addEventListener('mouseleave', (function() {
 					if(this.revealed) return;
-					this.context.drawImage(this, 0, 0, this.cropWidth, this.cropHeight);
-					this.context.drawImage(this.canvas, 0, 0, this.cropWidth, this.cropHeight, 0, 0, this.displayWidth, this.displayHeight);
+					this.showCropped();
 				}).bind(this));
 			}
 			if(this._settings.reveal_on_click === true) {
 				this.canvas.addEventListener('click', (function() {
 					this.revealed = !this.revealed;
 					if(this.revealed) {
-						this.context.drawImage(this, 0, 0, this.displayWidth, this.displayHeight);
+						this.showFull();
 					} else {
-						this.context.drawImage(this, 0, 0, this.cropWidth, this.cropHeight);
-						this.context.drawImage(this.canvas, 0, 0, this.cropWidth, this.cropHeight, 0, 0, this.displayWidth, this.displayHeight);
+						this.showCropped();
 					}
 				}).bind(this));
 			}
@@ -103,10 +163,22 @@
 		if(!this._done) {
 			this._done = true;
 			this.parseArguments();
-			this.perform();
+			this.prepare();
+			if(this instanceof HTMLVideoElement) {
+				this.showCropped = this.showCroppedVideo;
+				this.showFull    = this.showFullVideo;
+			} else {
+				this.showCropped = this.showCroppedImage;
+				this.showFull    = this.showFullImage;
+			}
+			this.showCropped();
 			this.listen();
 		}
+
+		return this;
 	};
+	window.HTMLVideoElement.prototype.pixelate = window.HTMLImageElement.prototype.pixelate;
+
 	if(typeof $ === 'function') {
 		$.fn.extend({
 			pixelate: function() {
@@ -116,12 +188,9 @@
 			}
 		});
 	}
-	document.addEventListener('DOMContentLoaded', function() {
-		var img = document.querySelectorAll('img[data-pixelate]');
-		for(var i = 0; i < img.length; i++) {
-			img[i].addEventListener('load', function() {
-				this.pixelate();
-			});
-		}
+
+	PixelateHelper.ready(function(){
+		PixelateHelper.pixelateImages(document.querySelectorAll('img[data-pixelate]'));
+		PixelateHelper.pixelateVideos(document.querySelectorAll('video[data-pixelate]'));
 	});
 })(window, typeof jQuery === 'undefined' ? null : jQuery);
