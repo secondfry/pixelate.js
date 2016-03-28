@@ -102,8 +102,8 @@ var PixelateHelper = {
 			this.canvas.width = this.displayWidth;
 			this.canvas.height = this.displayHeight;
 			this.canvas.style = this.style;
+			this.canvas.style.height = 'auto';
 			this.canvas.classList = this.classList;
-			this.canvas.style.position = 'relative'; // FIXME 'position: absolute' is incompatible with 'height: 100%' on canvas
 			for(var option in this.dataset) {
 				if(this.dataset.hasOwnProperty(option)) {
 					if(option === 'reactid') continue; // FIXME React.js can't have two elements with same id
