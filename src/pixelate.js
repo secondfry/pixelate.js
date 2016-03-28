@@ -58,7 +58,7 @@ var PixelateHelper = {
 			url = PixelateHelper.createLocation(element.src)
 		}
 
-		if(url.hostname) {
+		if(url && url.hostname) {
 			switch(url.hostname) {
 				case 'yt3.ggpht.com':
 					return {verticalAlign: 'middle'};
