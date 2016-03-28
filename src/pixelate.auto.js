@@ -6,7 +6,7 @@
  */
 'use strict';
 
-(function() {
+var PixelateAuto = function(autoOptions){
 	function ready(fn) {
 		if (document.readyState != 'loading') {
 			fn();
@@ -22,7 +22,7 @@
 					image.src = image.src + '?' + new Date().getTime();
 				}
 				image.addEventListener('load', function (e) {
-					this.pixelate();
+					this.pixelate(autoOptions);
 				})
 			})
 		}
@@ -36,4 +36,4 @@
 			}
 		})
 	});
-})();
+};
