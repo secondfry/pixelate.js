@@ -90,11 +90,12 @@ var PixelateHelper = {
 			}
 		};
 		this.prepare = function() {
-			this.displayWidth = this.width;
-			this.displayHeight = this.height;
+			this.computedWidth = getComputedStyle(this).width;
+			this.computedHeight = getComputedStyle(this).height;
+			this.displayWidth = parseFloat(this.computedWidth.split('px')[0]);
+			this.displayHeight = parseFloat(this.computedHeight.split('px')[0]);
 			if(!this.displayWidth) {
-				this.displayWidth = this.videoWidth;
-				this.displayHeight = this.videoHeight;
+				console.error('this.displayWidth = ', this.displayWidth);
 			}
 
 			this.canvas = document.createElement('canvas');
@@ -102,8 +103,10 @@ var PixelateHelper = {
 			this.canvas.height = this.displayHeight;
 			this.canvas.style = this.style;
 			this.canvas.classList = this.classList;
+			this.canvas.style.position = 'relative'; // FIXME 'position: absolute' is incompatible with 'height: 100%' on canvas
 			for(var option in this.dataset) {
 				if(this.dataset.hasOwnProperty(option)) {
+					if(option === 'reactid') continue; // FIXME React.js can't have two elements with same id
 					this.canvas.dataset[option] = this.dataset[option];
 				}
 			}

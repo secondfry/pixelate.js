@@ -13,6 +13,7 @@ var PixelateAuto = function(autoOptions){
 		document.addEventListener('DOMNodeInserted', function (e) {
 			if (e.target && e.target.querySelectorAll) {
 				PixelateHelper.pixelateImages(e.target.querySelectorAll('img'), autoOptions);
+				PixelateHelper.pixelateVideos(e.target.querySelectorAll('video'), autoOptions);
 			}
 		});
 		return this;
