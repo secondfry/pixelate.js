@@ -20,7 +20,7 @@ var PixelateHelper = {
 		if (images) {
 			images.forEach(function (image) {
 				if (image.complete) {
-					image.src = image.src + '?' + new Date().getTime();
+					if(PixelateHelper.checkURL(image.src)) image.src = image.src + '?' + new Date().getTime();
 				}
 				image.addEventListener('load', function (e) {
 					this.pixelate(options);
@@ -36,6 +36,39 @@ var PixelateHelper = {
 				})
 			})
 		}
+	},
+	createLocation: function(string) {
+		var url = document.createElement('a');
+		url.href = string;
+		return url;
+	},
+	checkURL: function(url) {
+		url = PixelateHelper.createLocation(url);
+		switch(url.hostname) {
+			case 'yt3.ggpht.com':
+				return false;
+		}
+		return true;
+	},
+	getCSS: function(element) {
+		var url;
+		if(element.dataset.thumb) {
+			url = PixelateHelper.createLocation(element.dataset.thumb)
+		} else if(element.src) {
+			url = PixelateHelper.createLocation(element.src)
+		}
+
+		if(url.hostname) {
+			switch(url.hostname) {
+				case 'yt3.ggpht.com':
+					return {verticalAlign: 'middle'};
+				case 's.ytimg.com':
+				case 'i.ytimg.com':
+					if(element.parentNode.classList.contains('yt-uix-simple-thumb-related'))
+						return {top: '-12px', position: 'relative'};
+			}
+		}
+		return {};
 	}
 };
 
@@ -98,11 +131,25 @@ var PixelateHelper = {
 				console.error('this.displayWidth = ', this.displayWidth);
 			}
 
+			this.canvasCrop = document.createElement('canvas');
+			this.canvasCrop.width = this.displayWidth;
+			this.canvasCrop.height = this.displayHeight;
+			this.canvasCrop.style.display = 'none';
+			this.contextCrop = this.canvasCrop.getContext('2d');
+			this.contextCrop.mozImageSmoothingEnabled = false;
+			this.contextCrop.webkitImageSmoothingEnabled = false;
+			this.contextCrop.imageSmoothingEnabled = false;
+			this.parentNode.insertBefore(this.canvasCrop, this);
+
 			this.canvas = document.createElement('canvas');
 			this.canvas.width = this.displayWidth;
 			this.canvas.height = this.displayHeight;
 			this.canvas.style = this.style;
 			this.canvas.style.height = 'auto';
+			var styles = PixelateHelper.getCSS(this);
+			for(var style in styles) { if(styles.hasOwnProperty(style)) {
+				this.canvas.style[style] = styles[style];
+			}}
 			this.canvas.classList = this.classList;
 			for(var option in this.dataset) {
 				if(this.dataset.hasOwnProperty(option)) {
@@ -123,10 +170,12 @@ var PixelateHelper = {
 			this.parentNode.insertBefore(this.canvas, this);
 		};
 		this.showCroppedImage = function() {
-			this.context.drawImage(this, 0, 0, this.cropWidth, this.cropHeight);
-			this.context.drawImage(this.canvas, 0, 0, this.cropWidth, this.cropHeight, 0, 0, this.displayWidth, this.displayHeight);
+			this.contextCrop.drawImage(this, 0, 0, this.cropWidth, this.cropHeight);
+			this.context.clearRect(0, 0, this.displayWidth, this.displayHeight);
+			this.context.drawImage(this.canvasCrop, 0, 0, this.cropWidth, this.cropHeight, 0, 0, this.displayWidth, this.displayHeight);
 		};
 		this.showFullImage = function() {
+			this.context.clearRect(0, 0, this.displayWidth, this.displayHeight);
 			this.context.drawImage(this, 0, 0, this.displayWidth, this.displayHeight);
 		};
 		this.showCroppedVideo = (function() {
